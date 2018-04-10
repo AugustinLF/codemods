@@ -11,7 +11,7 @@
  * };
  */
 
-module.exports = function (file, api) {
+module.exports = function(file, api) {
   const j = api.jscodeshift;
 
   const root = j(file.source);
@@ -19,21 +19,17 @@ module.exports = function (file, api) {
   const exportsToAddToDefault = [];
 
   // Replace the named exports by simple declarations
-  root.find(j.ExportNamedDeclaration)
-    .replaceWith(e => {
-        // const myFunc = () => {};
-        const declaration = e.value.declaration;
-        // We assume there's only declation per export
-        exportsToAddToDefault.push(declaration.declarations[0].id.name);
-        return declaration;
-    });
+  root.find(j.ExportNamedDeclaration).replaceWith(e => {
+    // const myFunc = () => {};
+    const declaration = e.value.declaration;
+    // We assume there's only declation per export
+    exportsToAddToDefault.push(declaration.declarations[0].id.name);
+    return declaration;
+  });
 
-  const exportedProperties = exportsToAddToDefault
-    .map(exportName => j.property(
-      'init',
-      j.identifier(exportName),
-      j.identifier(exportName)
-    ));
+  const exportedProperties = exportsToAddToDefault.map(exportName =>
+    j.property('init', j.identifier(exportName), j.identifier(exportName))
+  );
 
   for (let i = 0; i < exportedProperties.length; i++) {
     exportedProperties[i].shorthand = true;
@@ -44,23 +40,17 @@ module.exports = function (file, api) {
   if (defaultDeclaration.size()) {
     defaultDeclaration.replaceWith(p => {
       const value = p.value;
-      value.declaration.properties = [
-        ...value.declaration.properties,
-        ...exportedProperties,
-      ];
+      value.declaration.properties = [...value.declaration.properties, ...exportedProperties];
       return value;
-    })
+    });
   } else {
-    const defaultExport = j.exportDefaultDeclaration(
-      j.objectExpression(exportedProperties)
-    );
+    const defaultExport = j.exportDefaultDeclaration(j.objectExpression(exportedProperties));
 
     // This work. But it's obviously ugly
     root.nodes()[0].program.body.push(defaultExport);
   }
 
-  return root
-    .toSource({
-      trailingComma: true,
-    });
+  return root.toSource({
+    trailingComma: true,
+  });
 };
